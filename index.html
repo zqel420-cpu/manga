@@ -1161,23 +1161,45 @@ $('btn-add-zip').addEventListener('click', () => {
         const imgs = entries.filter(e => isImg(e.path) && !/(^|\/)(__MACOSX|\.)/.test(e.path));
         if (!imgs.length) { showToast(`Aucune image dans ${f.name}`); continue; }
         imgs.sort(nsort);
-        // si tout est dans un dossier racine unique, on l'enlève
-        const roots = new Set(imgs.map(i => i.path.split('/')[0]));
-        const strip = roots.size === 1 && imgs.every(i => i.path.includes('/'));
-        const files = [];
-        for (const e of imgs) {
-          const p = strip ? e.path.split('/').slice(1).join('/') : e.path;
-          const parts = p.split('/');
-          const blob = await e.blob();
-          files.push({ file: new File([blob], parts[parts.length-1], { type: blob.type }),
-                       path: p, chapter: parts.length > 1 ? parts.slice(0,-1).join('/') : '—' });
+        const baseName = f.name.replace(/\.(zip|cbz)$/i, '');
+        // on enlève les dossiers "enveloppe" (tant que tout est dans un seul dossier racine)
+        let k = 0;
+        while (imgs.every(i => i.path.split('/').length > k + 1) &&
+               new Set(imgs.map(i => i.path.split('/')[k])).size === 1) k++;
+        const items0 = imgs.map(e => ({ e, p: e.path.split('/').slice(k).join('/') }));
+        const roots = [...new Set(items0.map(x => x.p.split('/')[0]))];
+        const allInFolders = items0.every(x => x.p.includes('/'));
+
+        // Découpe le zip en "mangas" : [{ name, items:[{e, p}] }]
+        let groups;
+        if (allInFolders && roots.length > 1 &&
+            confirm(`Ce zip contient ${roots.length} dossiers.\n\nOK = un manga par dossier\nAnnuler = un seul manga avec ${roots.length} chapitres`)) {
+          groups = roots.map(r => ({ name: r, items: items0.filter(x => x.p.split('/')[0] === r)
+                                                           .map(x => ({ e: x.e, p: x.p.split('/').slice(1).join('/') })) }));
+        } else {
+          groups = [{ name: baseName, items: items0 }];
         }
-        await dbPut({
-          name: f.name.replace(/\.(zip|cbz)$/i, ''), handle: null, inputFiles: files,
-          cover: files[0].file, totalImgs: files.length, readImgs: 0, chIdx: 0, pgIdx: 0,
-          lastChap: null, addedAt: Date.now() + added, lastAt: null
-        });
-        added++;
+
+        // Chaque manga est enregistré tout de suite, puis libéré (ménage la mémoire)
+        let gi = 0;
+        for (const g of groups) {
+          gi++;
+          showLoading(groups.length > 1 ? `Import ${gi}/${groups.length} : ${g.name}` : `Import de "${f.name}"…`);
+          const files = [];
+          for (const { e, p } of g.items) {
+            const parts = p.split('/');
+            const blob = await e.blob();
+            files.push({ file: new File([blob], parts[parts.length-1], { type: blob.type }),
+                         path: p, chapter: parts.length > 1 ? parts.slice(0,-1).join('/') : '—' });
+          }
+          files.sort(nsort);
+          await dbPut({
+            name: g.name, handle: null, inputFiles: files,
+            cover: files[0].file, totalImgs: files.length, readImgs: 0, chIdx: 0, pgIdx: 0,
+            lastChap: null, addedAt: Date.now() + added, lastAt: null
+          });
+          added++;
+        }
       } catch (err) { console.error(err); showToast(`Échec « ${f.name} » : ${err && err.message ? err.message : 'erreur'}`); }
     }
     hideLoading();
