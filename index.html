@@ -1,0 +1,1641 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Manga Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #090909;
+  --surface: #0F0F0F;
+  --card:    #141414;
+  --border:  #1F1F1F;
+  --dim:     #2C2C2C;
+  --paper:   #E8E7E0;
+  --muted:   #505050;
+  --red:     #D02B20;
+  --red-lo:  rgba(208,43,32,0.1);
+}
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--paper);
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══ VIEWS ═══ */
+.view {
+  position: fixed;
+  inset: 0;
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+.view.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(6px);
+}
+
+/* ═══ LIBRARY ═══ */
+#vlib {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.lib-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 26px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  gap: 12px;
+}
+.lib-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  user-select: none;
+}
+.brand-text {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 19px;
+  letter-spacing: 4px;
+  color: var(--paper);
+}
+.brand-text em { color: var(--red); font-style: normal; }
+.lib-count {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-left: 4px;
+}
+.btn-add {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 13px;
+  font: 500 12px/1 'Inter', sans-serif;
+  cursor: pointer;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.btn-add:hover  { opacity: 0.82; }
+.btn-add:active { opacity: 0.65; transform: scale(0.98); }
+.lib-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 26px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dim) transparent;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+}
+/* Card */
+.manga-card {
+  position: relative;
+  cursor: pointer;
+  border-radius: 7px;
+  overflow: hidden;
+  background: var(--card);
+  border: 1px solid var(--border);
+  transition: transform 0.16s, border-color 0.16s;
+  user-select: none;
+}
+.manga-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--dim);
+}
+.manga-card:hover .card-hover { opacity: 1; }
+.manga-card:hover .card-del   { opacity: 1; }
+.card-cover {
+  width: 100%;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  display: block;
+  background: var(--border);
+}
+.card-no-cover {
+  width: 100%;
+  aspect-ratio: 2/3;
+  background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-hover {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  aspect-ratio: 2/3;
+  background: rgba(0,0,0,0.6);
+  opacity: 0;
+  transition: opacity 0.16s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.card-hover-lbl {
+  background: var(--red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 13px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+.card-del {
+  position: absolute;
+  top: 6px; right: 6px;
+  width: 20px; height: 20px;
+  background: rgba(0,0,0,0.72);
+  border: none;
+  border-radius: 50%;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+.card-del:hover { color: var(--red); }
+.card-fav {
+  position: absolute;
+  top: 6px; right: 30px;
+  width: 20px; height: 20px;
+  background: rgba(0,0,0,0.72);
+  border: none;
+  border-radius: 50%;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+.card-fav:hover   { color: #F0B429; }
+.card-fav.on      { opacity: 1; color: #F0B429; }
+.manga-card:hover .card-fav { opacity: 1; }
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 12px;
+}
+.section-title svg { flex-shrink: 0; }
+.section-block { margin-bottom: 28px; }
+.card-badge {
+  position: absolute;
+  top: 6px; left: 6px;
+  font-size: 9px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+.badge-new  { background: var(--dim);     color: var(--muted); }
+.badge-done { background: var(--red-lo);  color: var(--red);   }
+.card-info  { padding: 7px 9px 5px; }
+.card-title {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--paper);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 2px;
+}
+.card-meta {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-bar-track {
+  height: 2px;
+  background: var(--dim);
+  border-radius: 1px;
+  overflow: hidden;
+  margin-bottom: 5px;
+}
+.card-bar-fill {
+  height: 100%;
+  background: var(--red);
+  border-radius: 1px;
+}
+/* Empty */
+.empty {
+  grid-column: 1/-1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+  padding: 80px 20px;
+  color: var(--muted);
+  text-align: center;
+}
+.empty-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 3px;
+  color: var(--dim);
+}
+.empty-sub  { font-size: 12px; color: var(--muted); line-height: 1.7; }
+.btn-empty  {
+  margin-top: 4px;
+  background: none;
+  border: 1px solid var(--dim);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 7px 16px;
+  font: 12px 'Inter', sans-serif;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-empty:hover { border-color: var(--muted); color: var(--paper); }
+
+/* ═══ READER ═══ */
+#vrd { background: #070707; }
+#rd-img {
+  position: fixed;
+  inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  display: block;
+  transition: opacity 0.1s;
+  touch-action: none;
+  transform-origin: 50% 50%;
+}
+#rd-img.fade { opacity: 0; }
+.rd-zone {
+  position: fixed;
+  top: 0; bottom: 50px;
+  width: 30%;
+  z-index: 20;
+  touch-action: none;
+}
+#rz-prev { left: 0;  cursor: w-resize; }
+#rz-next { right: 0; cursor: e-resize; }
+/* Progress line */
+#rd-prog {
+  position: fixed;
+  bottom: 0; left: 0;
+  height: 2px;
+  background: var(--red);
+  transition: width 0.2s;
+  z-index: 110;
+}
+/* HUD */
+#rd-hud {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 50px;
+  background: rgba(5,5,5,0.93);
+  backdrop-filter: blur(14px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 100;
+  gap: 10px;
+  transition: opacity 0.35s, transform 0.35s;
+}
+#rd-hud.out { opacity: 0; transform: translateY(5px); pointer-events: none; }
+.hud-l {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+.hud-home {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.14s;
+}
+.hud-home:hover { color: var(--paper); }
+.hud-title {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--paper);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud-dot { color: var(--dim); flex-shrink: 0; font-size: 11px; }
+/* Chapter dropdown */
+.hud-chap {
+  flex-shrink: 0;
+  font-size: 10px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 3px 6px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  appearance: none;
+  outline: none;
+  max-width: 130px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: border-color 0.14s, color 0.14s;
+}
+.hud-chap:hover { border-color: var(--dim); color: var(--paper); }
+.hud-chap option { background: #111; color: var(--paper); }
+.hud-c {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 20px;
+  letter-spacing: 3px;
+  color: var(--paper);
+  flex-shrink: 0;
+}
+.hud-r { display: flex; align-items: center; gap: 3px; flex-shrink: 0; }
+.hud-btn {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: color 0.14s, background 0.14s;
+}
+.hud-btn:hover   { color: var(--paper); background: rgba(255,255,255,0.05); }
+.hud-btn.on { color: var(--red); }
+/* Thumbs */
+#rd-tbs {
+  position: fixed;
+  bottom: 50px; left: 0; right: 0;
+  height: 84px;
+  background: rgba(5,5,5,0.97);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 10px;
+  overflow-x: auto;
+  z-index: 99;
+  transform: translateY(100%);
+  transition: transform 0.26s ease;
+  scrollbar-width: thin;
+  scrollbar-color: var(--dim) transparent;
+}
+#rd-tbs.open { transform: translateY(0); }
+.tb {
+  flex-shrink: 0;
+  width: 48px; height: 68px;
+  object-fit: cover;
+  border-radius: 3px;
+  opacity: 0.35;
+  cursor: pointer;
+  outline: 2px solid transparent;
+  outline-offset: 1px;
+  transition: opacity 0.13s;
+}
+.tb:hover { opacity: 0.7; }
+.tb.on    { opacity: 1; outline-color: var(--red); }
+
+/* ═══ CHAPTER END NUDGE ═══ */
+#chap-next-nudge {
+  position: fixed;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  background: rgba(14,14,14,0.94);
+  border: 1px solid var(--dim);
+  border-radius: 8px;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--paper);
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s;
+  white-space: nowrap;
+}
+#chap-next-nudge.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: all;
+}
+.nudge-btn {
+  background: var(--red);
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ═══ MODAL ═══ */
+#modal-wrap {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.72);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+#modal-wrap.show { opacity: 1; pointer-events: all; }
+.modal-box {
+  background: #1C1C1C;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 22px 26px;
+  width: 300px;
+  max-width: 90vw;
+}
+.modal-t { font-size: 14px; font-weight: 500; color: var(--paper); margin-bottom: 5px; }
+.modal-s { font-size: 11px; color: var(--muted); line-height: 1.65; margin-bottom: 18px; }
+.modal-acts { display: flex; gap: 8px; justify-content: flex-end; }
+.m-cancel {
+  background: none;
+  border: 1px solid var(--dim);
+  color: var(--muted);
+  border-radius: 5px;
+  padding: 6px 14px;
+  font: 12px 'Inter', sans-serif;
+  cursor: pointer;
+  transition: border-color 0.14s, color 0.14s;
+}
+.m-cancel:hover { border-color: var(--muted); color: var(--paper); }
+.m-ok {
+  background: var(--red);
+  border: none;
+  color: #fff;
+  border-radius: 5px;
+  padding: 6px 14px;
+  font: 500 12px 'Inter', sans-serif;
+  cursor: pointer;
+  transition: opacity 0.14s;
+}
+.m-ok:hover { opacity: 0.82; }
+
+/* ═══ TOAST ═══ */
+#toast {
+  position: fixed;
+  bottom: 62px;
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  background: rgba(20,20,20,0.95);
+  border: 1px solid var(--dim);
+  color: var(--paper);
+  font-size: 11px;
+  padding: 7px 14px;
+  border-radius: 6px;
+  z-index: 600;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity 0.22s, transform 0.22s;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ═══ LOADING ═══ */
+#loading {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.78);
+  z-index: 700;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s;
+}
+#loading.show { opacity: 1; pointer-events: all; }
+.spin {
+  width: 24px; height: 24px;
+  border: 1.5px solid var(--dim);
+  border-top-color: var(--red);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.load-txt { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }
+
+@media (max-width: 640px) {
+  .lib-header { flex-wrap: wrap; gap: 10px; padding: 12px 14px !important; }
+  .lib-header > div:last-child { flex-wrap: wrap; width: 100%; }
+  .lib-header .btn-add { flex: 1 1 100%; justify-content: center; padding: 11px 13px; font-size: 13px; }
+  #btn-add, #btn-add-multi { display: none; }
+  .lib-body { padding: 16px 14px !important; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(105px, 1fr)) !important; }
+}
+
+.hud-nav { display:flex; align-items:center; gap:4px; white-space:nowrap; }
+.nav-btn { font-size:30px; line-height:1; min-width:46px; height:46px; display:flex; align-items:center; justify-content:center; padding:0 6px; }
+@media (max-width: 640px) {
+  .hud-title, .hud-dot { display:none; }
+  #rd-hud { height: 58px; }
+  #rd-tbs { bottom: 58px; }
+  .rd-zone { bottom: 58px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ───────────── LIBRARY ───────────── -->
+<div id="vlib" class="view">
+  <header class="lib-header">
+    <div class="lib-brand">
+      <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+        <rect x="2" y="1" width="11" height="20" rx="1.5" stroke="#E8E7E0" stroke-width="1"/>
+        <rect x="5" y="1" width="11" height="20" rx="1.5" fill="#0F0F0F" stroke="#E8E7E0" stroke-width="1"/>
+        <line x1="7.5" y1="6" x2="14" y2="6" stroke="#D02B20" stroke-width="1"/>
+        <line x1="7.5" y1="10" x2="14" y2="10" stroke="#2C2C2C" stroke-width="1"/>
+        <line x1="7.5" y1="14" x2="12" y2="14" stroke="#2C2C2C" stroke-width="1"/>
+      </svg>
+      <span class="brand-text">MAN<em>G</em>A</span>
+      <span class="lib-count" id="lib-count"></span>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn-add" id="btn-add-zip" style="background:#D02B20;">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+          <line x1="5.5" y1="1" x2="5.5" y2="10" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="1" y1="5.5" x2="10" y2="5.5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        Importer ZIP / CBZ
+      </button>
+      <button class="btn-add" id="btn-add" >
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+          <line x1="5.5" y1="1" x2="5.5" y2="10" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="1" y1="5.5" x2="10" y2="5.5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        Ajouter un manga
+      </button>
+      <button class="btn-add" id="btn-add-multi" style="background:#2C2C2C;">
+        <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
+          <line x1="5.5" y1="1" x2="5.5" y2="10" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="1" y1="5.5" x2="10" y2="5.5" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+        Importer plusieurs (dossier parent)
+      </button>
+    </div>
+  </header>
+  <div class="lib-body">
+    <div class="section-block" id="fav-block" style="display:none">
+      <div class="section-title">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="#F0B429">
+          <path d="M6 0.5L7.6 4.1L11.5 4.5L8.6 7.1L9.4 11L6 9L2.6 11L3.4 7.1L0.5 4.5L4.4 4.1Z"/>
+        </svg>
+        Favoris
+      </div>
+      <div class="grid" id="grid-fav"></div>
+    </div>
+    <div class="section-block">
+      <div class="section-title" id="all-title" style="display:none">Tous les mangas</div>
+      <div class="grid" id="grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── READER ───────────── -->
+<div id="vrd" class="view hidden">
+  <img id="rd-img" src="" alt="">
+  <div class="rd-zone" id="rz-prev"></div>
+  <div class="rd-zone" id="rz-next"></div>
+  <div id="rd-prog"></div>
+
+  <div id="rd-hud">
+    <div class="hud-l">
+      <button class="hud-home" id="btn-home" title="Bibliothèque (ESC)">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+          <path d="M1.5 6.5L7.5 1.5L13.5 6.5V13.5H9.5V9.5H5.5V13.5H1.5V6.5Z"
+                stroke="currentColor" stroke-width="1.1" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <span class="hud-title" id="hud-title">—</span>
+      <span class="hud-dot">·</span>
+      <select class="hud-chap" id="hud-chap"></select>
+    </div>
+    <div class="hud-c hud-nav">
+      <button class="hud-btn nav-btn" id="btn-prev" aria-label="Page précédente">‹</button>
+      <span id="hud-page">— / —</span>
+      <button class="hud-btn nav-btn" id="btn-next" aria-label="Page suivante">›</button>
+    </div>
+    <div class="hud-r">
+      <button class="hud-btn" id="btn-tbs" title="Miniatures (T)" onclick="toggleTbs()">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+          <rect x="1" y="1" width="5" height="6.5" rx="1" stroke="currentColor" stroke-width="1.1"/>
+          <rect x="9" y="1" width="5" height="6.5" rx="1" stroke="currentColor" stroke-width="1.1"/>
+          <rect x="1" y="10.5" width="5" height="3.5" rx="1" stroke="currentColor" stroke-width="1.1"/>
+          <rect x="9" y="10.5" width="5" height="3.5" rx="1" stroke="currentColor" stroke-width="1.1"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="rd-tbs"></div>
+
+  <div id="chap-next-nudge">
+    <span id="nudge-lbl">Chapitre suivant</span>
+    <button class="nudge-btn" id="nudge-btn">Continuer →</button>
+    <button class="hud-btn" onclick="hideNudge()" style="padding:2px">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+        <line x1="1" y1="1" x2="9" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        <line x1="9" y1="1" x2="1" y2="9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<!-- ───────────── MODAL ───────────── -->
+<div id="modal-wrap">
+  <div class="modal-box">
+    <div class="modal-t" id="modal-t">Supprimer ?</div>
+    <div class="modal-s" id="modal-s">Ce manga sera retiré de ta bibliothèque. Les fichiers ne seront pas supprimés.</div>
+    <div class="modal-acts">
+      <button class="m-cancel" onclick="closeModal()">Annuler</button>
+      <button class="m-ok" id="modal-ok">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────── TOAST ───────────── -->
+<div id="toast"></div>
+
+<!-- ───────────── LOADING ───────────── -->
+<div id="loading">
+  <div class="spin"></div>
+  <div class="load-txt" id="load-txt">Chargement…</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  DATABASE — IndexedDB
+// ═══════════════════════════════════════════
+const DB = { name: 'mg-reader', ver: 3, store: 'mangas', files: 'files' };
+let idb = null;
+
+function openDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(DB.name, DB.ver);
+    r.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(DB.store))
+        d.createObjectStore(DB.store, { keyPath: 'id', autoIncrement: true });
+      if (!d.objectStoreNames.contains(DB.files))
+        d.createObjectStore(DB.files, { keyPath: 'id' });
+    };
+    r.onsuccess = e => res(e.target.result);
+    r.onerror   = e => rej(e.target.error);
+  });
+}
+const tx = (mode) => idb.transaction(DB.store, mode).objectStore(DB.store);
+const dbAll    = ()      => new Promise((r,j) => { const q=tx('readonly').getAll(); q.onsuccess=()=>r(q.result); q.onerror=()=>j(); });
+const dbGet    = (id)    => new Promise((r,j) => { const q=tx('readonly').get(id); q.onsuccess=()=>r(q.result); q.onerror=()=>j(); });
+const putRaw   = (store, data) => new Promise((r,j) => { const q=idb.transaction(store,'readwrite').objectStore(store).put(data); q.onsuccess=()=>r(q.result); q.onerror=()=>j(q.error); });
+// Les pages sont rangées à part : la bibliothèque ne charge que les infos légères
+const dbPut = async (data) => {
+  let pages = null;
+  if (data.inputFiles) { pages = data.inputFiles; data = { ...data }; delete data.inputFiles; }
+  const id = await putRaw(DB.store, data);
+  if (pages) await putRaw(DB.files, { id, inputFiles: pages });
+  return id;
+};
+const dbPages  = (id) => new Promise((r,j) => { const q=idb.transaction(DB.files,'readonly').objectStore(DB.files).get(id); q.onsuccess=()=>r(q.result ? q.result.inputFiles : null); q.onerror=()=>j(); });
+const dbDelete = (id) => new Promise((r,j) => { const t=idb.transaction([DB.store, DB.files],'readwrite'); t.objectStore(DB.store).delete(id); t.objectStore(DB.files).delete(id); t.oncomplete=()=>r(); t.onerror=()=>j(); });
+// Migration des anciens mangas (pages stockées dans la fiche) : un par un
+async function migrateOld() {
+  const keys = await new Promise(r => { const q=tx('readonly').getAllKeys(); q.onsuccess=()=>r(q.result); q.onerror=()=>r([]); });
+  for (const k of keys) {
+    const m = await dbGet(k);
+    if (m && m.inputFiles) await dbPut(m);
+  }
+}
+
+
+// ═══════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════
+let chapters    = [];   // [{name, imgs:[{url,name}]}]
+let chIdx = 0, pgIdx = 0;
+let curId = null;
+let hudT  = null, nudgeT = null;
+let tbsOpen = false;
+let modalCb = null;
+
+// ═══════════════════════════════════════════
+//  ELEMENTS
+// ═══════════════════════════════════════════
+const $ = id => document.getElementById(id);
+const vlib       = $('vlib');
+const vrd        = $('vrd');
+const gridEl     = $('grid');
+const gridFavEl  = $('grid-fav');
+const favBlock   = $('fav-block');
+const allTitle   = $('all-title');
+const libCount   = $('lib-count');
+const rdImg      = $('rd-img');
+const rdProg     = $('rd-prog');
+const rdHud      = $('rd-hud');
+const hudTitle   = $('hud-title');
+const hudPage    = $('hud-page');
+const hudChap    = $('hud-chap');
+const rdTbs      = $('rd-tbs');
+const btnTbs     = $('btn-tbs');
+const nudgeEl    = $('chap-next-nudge');
+const nudgeLbl   = $('nudge-lbl');
+const nudgeBtn   = $('nudge-btn');
+const toast      = $('toast');
+const loadingEl  = $('loading');
+const loadTxt    = $('load-txt');
+const modalWrap  = $('modal-wrap');
+const modalT     = $('modal-t');
+const modalS     = $('modal-s');
+const modalOk    = $('modal-ok');
+
+// ═══════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════
+async function init() {
+  idb = await openDB();
+  try { await migrateOld(); } catch(e) { console.error(e); }
+  renderLibrary();
+}
+
+// ═══════════════════════════════════════════
+//  LIBRARY
+// ═══════════════════════════════════════════
+function buildCard(m) {
+  const total = m.totalImgs || 0;
+  const read  = m.readImgs  || 0;
+  const pct   = total > 0 ? Math.round((read/total)*100) : 0;
+  const done  = pct >= 100;
+  const fresh = read === 0;
+  const meta  = total > 0
+    ? (fresh ? `${total} pages` : `Page ${read} / ${total}`)
+    : 'Vide';
+
+  const card = document.createElement('div');
+  card.className = 'manga-card';
+
+  // Cover HTML
+  let coverH;
+  if (m.cover) {
+    const url = URL.createObjectURL(m.cover);
+    coverH = `<img class="card-cover" src="${url}" alt="" onload="URL.revokeObjectURL(this.src)">`;
+  } else {
+    coverH = `<div class="card-no-cover">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <rect x="3" y="2" width="12" height="24" rx="1.5" stroke="#2C2C2C" stroke-width="1"/>
+        <rect x="6" y="2" width="12" height="24" rx="1.5" fill="#141414" stroke="#2C2C2C" stroke-width="1"/>
+      </svg>
+    </div>`;
+  }
+
+  // Badge
+  let badgeH = '';
+  if (done)  badgeH = `<span class="card-badge badge-done">Terminé</span>`;
+  if (fresh) badgeH = `<span class="card-badge badge-new">Nouveau</span>`;
+
+  const isFav = !!m.fav;
+
+  card.innerHTML = `
+    ${coverH}
+    ${badgeH}
+    <div class="card-hover"><span class="card-hover-lbl">${fresh?'Commencer':'Reprendre'}</span></div>
+    <button class="card-fav${isFav?' on':''}" title="Favori" style="pointer-events:all">
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="${isFav?'currentColor':'none'}" style="pointer-events:none">
+        <path d="M6 0.5L7.6 4.1L11.5 4.5L8.6 7.1L9.4 11L6 9L2.6 11L3.4 7.1L0.5 4.5L4.4 4.1Z" stroke="currentColor" stroke-width="1"/>
+      </svg>
+    </button>
+    <button class="card-del" title="Supprimer" style="pointer-events:all">
+      <svg width="9" height="9" viewBox="0 0 9 9" fill="none" style="pointer-events:none">
+        <line x1="1" y1="1" x2="8" y2="8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        <line x1="8" y1="1" x2="1" y2="8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <div class="card-info">
+      <div class="card-title">${esc(m.name)}</div>
+      <div class="card-meta">${esc(meta)}</div>
+      <div class="card-bar-track"><div class="card-bar-fill" style="width:${pct}%"></div></div>
+    </div>`;
+
+  const mangaId   = m.id;
+  const mangaName = m.name;
+  card.querySelector('.card-del').addEventListener('click', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    openModal(
+      `Supprimer "${mangaName}" ?`,
+      'Ce manga sera retiré de ta bibliothèque. Les fichiers ne sont pas supprimés.',
+      async () => { await dbDelete(Number(mangaId)); showToast(`"${mangaName}" supprimé`); renderLibrary(); }
+    );
+  });
+  card.querySelector('.card-fav').addEventListener('click', async e => {
+    e.stopPropagation();
+    e.preventDefault();
+    const mm = await dbGet(mangaId);
+    if (!mm) return;
+    mm.fav = !mm.fav;
+    await dbPut(mm);
+    showToast(mm.fav ? `"${mangaName}" ajouté aux favoris` : `"${mangaName}" retiré des favoris`);
+    renderLibrary();
+  });
+  card.addEventListener('click', () => openManga(mangaId));
+  return card;
+}
+
+async function renderLibrary() {
+  const all = await dbAll();
+  all.sort((a,b) => (b.lastAt||b.addedAt) - (a.lastAt||a.addedAt));
+  libCount.textContent = all.length ? `${all.length} titre${all.length>1?'s':''}` : '';
+  gridEl.innerHTML = '';
+  gridFavEl.innerHTML = '';
+
+  if (!all.length) {
+    favBlock.style.display = 'none';
+    allTitle.style.display = 'none';
+    gridEl.innerHTML = `
+      <div class="empty">
+        <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+          <rect x="8" y="5" width="22" height="42" rx="2" stroke="#2C2C2C" stroke-width="1.2"/>
+          <rect x="13" y="5" width="22" height="42" rx="2" fill="#0F0F0F" stroke="#2C2C2C" stroke-width="1.2"/>
+          <line x1="18" y1="16" x2="30" y2="16" stroke="#1F1F1F" stroke-width="1.2"/>
+          <line x1="18" y1="22" x2="30" y2="22" stroke="#1F1F1F" stroke-width="1.2"/>
+          <line x1="18" y1="28" x2="26" y2="28" stroke="#1F1F1F" stroke-width="1.2"/>
+        </svg>
+        <div class="empty-title">Bibliothèque vide</div>
+        <div class="empty-sub">Ajoute ton premier manga pour commencer.<br>Les chapitres sont sauvegardés automatiquement.</div>
+        <button class="btn-empty" onclick="addManga()">+ Ajouter un manga</button>
+      </div>`;
+    return;
+  }
+
+  const favs   = all.filter(m => m.fav);
+  const others = all.filter(m => !m.fav);
+
+  favBlock.style.display = favs.length ? '' : 'none';
+  favs.forEach(m => gridFavEl.appendChild(buildCard(m)));
+
+  allTitle.style.display = (favs.length && others.length) ? '' : 'none';
+  others.forEach(m => gridEl.appendChild(buildCard(m)));
+}
+
+// ═══════════════════════════════════════════
+//  ADD MANGA
+// ═══════════════════════════════════════════
+$('btn-add').addEventListener('click', addManga);
+
+async function addManga() {
+  if ('showDirectoryPicker' in window) {
+    // Méthode moderne (Chrome, Edge, Opera...)
+    let dh;
+    try { dh = await window.showDirectoryPicker({ mode: 'read' }); }
+    catch { return; }
+    showLoading('Lecture du dossier…');
+    const files = [];
+    await scanDir(dh, files, '');
+    if (!files.length) { hideLoading(); showToast('Aucune image trouvée'); return; }
+    files.sort(nsort);
+    const cover = files[0].file;
+    const now = Date.now();
+    await dbPut({
+      name:      dh.name,
+      handle:    dh,
+      cover,
+      totalImgs: files.length,
+      readImgs:  0,
+      chIdx:     0,
+      pgIdx:     0,
+      lastChap:  null,
+      addedAt:   now,
+      lastAt:    null
+    });
+    hideLoading();
+    showToast(`"${dh.name}" ajouté`);
+    renderLibrary();
+  } else {
+    // Fallback universel — fonctionne sur Brave, Firefox, Safari...
+    addMangaViaInput();
+  }
+}
+
+function addMangaViaInput() {
+  // Crée un input file caché qui accepte les dossiers
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.webkitdirectory = true;
+  input.multiple = true;
+  input.accept = 'image/*';
+  input.style.display = 'none';
+  document.body.appendChild(input);
+
+  input.onchange = async () => {
+    const rawFiles = Array.from(input.files);
+    document.body.removeChild(input);
+    if (!rawFiles.length) return;
+
+    showLoading('Lecture du dossier…');
+
+    // Filtrer uniquement les images
+    const imgFiles = rawFiles.filter(f => isImg(f.name));
+    if (!imgFiles.length) { hideLoading(); showToast('Aucune image trouvée'); return; }
+
+    // Récupérer le nom du dossier racine depuis le chemin relatif
+    const firstPath = imgFiles[0].webkitRelativePath || imgFiles[0].name;
+    const folderName = firstPath.split('/')[0] || 'Manga';
+
+    // Construire la liste de fichiers avec chemin et chapitre
+    const files = imgFiles.map(f => {
+      const relPath = f.webkitRelativePath || f.name;
+      const parts   = relPath.split('/');
+      // parts[0] = dossier racine, parts[1] = sous-dossier (chapitre) ou fichier
+      const chapter = parts.length > 2 ? parts.slice(1, -1).join('/') : (parts.length === 2 ? '—' : '—');
+      return { file: f, path: relPath, chapter };
+    });
+    files.sort(nsort);
+
+    const cover = files[0].file;
+    const now = Date.now();
+    await dbPut({
+      name:      folderName,
+      handle:    null,        // pas de FileSystemDirectoryHandle en mode fallback
+      inputFiles: files.map(f => ({ file: f.file, path: f.path, chapter: f.chapter })),
+      cover,
+      totalImgs: files.length,
+      readImgs:  0,
+      chIdx:     0,
+      pgIdx:     0,
+      lastChap:  null,
+      addedAt:   now,
+      lastAt:    null
+    });
+    hideLoading();
+    showToast(`"${folderName}" ajouté`);
+    renderLibrary();
+  };
+
+  input.oncancel = () => document.body.removeChild(input);
+  input.click();
+}
+
+$('btn-add-multi').addEventListener('click', addMultipleMangas);
+
+async function addMultipleMangas() {
+  if ('showDirectoryPicker' in window) {
+    let parentDh;
+    try { parentDh = await window.showDirectoryPicker({ mode: 'read' }); }
+    catch { return; }
+
+    // Récupérer les sous-dossiers directs = un manga chacun
+    const subDirs = [];
+    for await (const entry of parentDh.values()) {
+      if (entry.kind === 'directory') subDirs.push(entry);
+    }
+
+    if (!subDirs.length) {
+      showToast('Aucun sous-dossier trouvé — utilise "Ajouter un manga" pour ce dossier');
+      return;
+    }
+
+    showLoading(`Import de ${subDirs.length} mangas…`);
+    let added = 0;
+    for (const dh of subDirs) {
+      const files = [];
+      await scanDir(dh, files, '');
+      if (!files.length) continue;
+      files.sort(nsort);
+      const cover = files[0].file;
+      const now = Date.now();
+      loadTxt.textContent = `Import de "${dh.name}"…`;
+      await dbPut({
+        name:      dh.name,
+        handle:    dh,
+        cover,
+        totalImgs: files.length,
+        readImgs:  0,
+        chIdx:     0,
+        pgIdx:     0,
+        lastChap:  null,
+        addedAt:   now + added, // garder l'ordre d'import
+        lastAt:    null
+      });
+      added++;
+    }
+    hideLoading();
+    showToast(added ? `${added} manga${added>1?'s':''} ajouté${added>1?'s':''}` : 'Aucun manga trouvé');
+    renderLibrary();
+  } else {
+    // Fallback universel — regroupe par sous-dossier de premier niveau
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.webkitdirectory = true;
+    input.multiple = true;
+    input.accept = 'image/*';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    input.onchange = async () => {
+      const rawFiles = Array.from(input.files);
+      document.body.removeChild(input);
+      if (!rawFiles.length) return;
+
+      showLoading('Lecture du dossier…');
+      const imgFiles = rawFiles.filter(f => isImg(f.name));
+      if (!imgFiles.length) { hideLoading(); showToast('Aucune image trouvée'); return; }
+
+      // Grouper par sous-dossier direct (parts[1] du chemin relatif)
+      const byManga = new Map();
+      for (const f of imgFiles) {
+        const relPath = f.webkitRelativePath || f.name;
+        const parts = relPath.split('/');
+        if (parts.length < 3) continue; // pas de sous-dossier manga -> ignoré
+        const mangaName = parts[1];
+        const chapter = parts.length > 3 ? parts.slice(2, -1).join('/') : '—';
+        if (!byManga.has(mangaName)) byManga.set(mangaName, []);
+        byManga.get(mangaName).push({ file: f, path: parts.slice(1).join('/'), chapter });
+      }
+
+      if (!byManga.size) {
+        hideLoading();
+        showToast('Structure non reconnue — utilise "Ajouter un manga" pour un seul titre');
+        return;
+      }
+
+      let added = 0;
+      const now = Date.now();
+      for (const [mangaName, files] of byManga.entries()) {
+        files.sort(nsort);
+        const cover = files[0].file;
+        await dbPut({
+          name:       mangaName,
+          handle:     null,
+          inputFiles: files.map(f => ({ file: f.file, path: f.path, chapter: f.chapter })),
+          cover,
+          totalImgs:  files.length,
+          readImgs:   0,
+          chIdx:      0,
+          pgIdx:      0,
+          lastChap:   null,
+          addedAt:    now + added,
+          lastAt:     null
+        });
+        added++;
+      }
+      hideLoading();
+      showToast(added ? `${added} manga${added>1?'s':''} ajouté${added>1?'s':''}` : 'Aucun manga trouvé');
+      renderLibrary();
+    };
+
+    input.oncancel = () => document.body.removeChild(input);
+    input.click();
+  }
+}
+
+// ═══════════════════════════════════════════
+//  IMPORT ZIP / CBZ (marche sur téléphone)
+// ═══════════════════════════════════════════
+window.addEventListener('error', e => showToast('Erreur : ' + (e.message || 'inconnue')));
+window.addEventListener('unhandledrejection', e => showToast('Erreur : ' + ((e.reason && e.reason.message) || 'inconnue')));
+
+$('btn-add-zip').addEventListener('click', () => {
+  // l'input doit rester dans la page, sinon Safari iPhone peut ne jamais déclencher "change"
+  const input = document.createElement('input');
+  input.type = 'file'; input.multiple = true;
+  input.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;';
+  document.body.appendChild(input);
+  input.addEventListener('change', async () => {
+    const list = Array.from(input.files || []);
+    if (!list.length) { input.remove(); return; }
+    showToast(`${list.length} fichier${list.length>1?'s':''} reçu${list.length>1?'s':''}, lecture…`);
+    let added = 0;
+    for (const f of list) {
+      try {
+        loadTxt.textContent = `Import de "${f.name}"…`;
+        showLoading(`Import de "${f.name}"…`);
+        const entries = await readZip(f);
+        const imgs = entries.filter(e => isImg(e.path) && !/(^|\/)(__MACOSX|\.)/.test(e.path));
+        if (!imgs.length) { showToast(`Aucune image dans ${f.name}`); continue; }
+        imgs.sort(nsort);
+        // si tout est dans un dossier racine unique, on l'enlève
+        const roots = new Set(imgs.map(i => i.path.split('/')[0]));
+        const strip = roots.size === 1 && imgs.every(i => i.path.includes('/'));
+        const files = [];
+        for (const e of imgs) {
+          const p = strip ? e.path.split('/').slice(1).join('/') : e.path;
+          const parts = p.split('/');
+          const blob = await e.blob();
+          files.push({ file: new File([blob], parts[parts.length-1], { type: blob.type }),
+                       path: p, chapter: parts.length > 1 ? parts.slice(0,-1).join('/') : '—' });
+        }
+        await dbPut({
+          name: f.name.replace(/\.(zip|cbz)$/i, ''), handle: null, inputFiles: files,
+          cover: files[0].file, totalImgs: files.length, readImgs: 0, chIdx: 0, pgIdx: 0,
+          lastChap: null, addedAt: Date.now() + added, lastAt: null
+        });
+        added++;
+      } catch (err) { console.error(err); showToast(`Échec « ${f.name} » : ${err && err.message ? err.message : 'erreur'}`); }
+    }
+    hideLoading();
+    input.remove();
+    if (added) showToast(`${added} manga${added>1?'s':''} ajouté${added>1?'s':''}`);
+    try { await renderLibrary(); } catch (e) { showToast('Affichage : ' + e.message); }
+  });
+  input.click();
+});
+
+// Lecteur ZIP minimal par morceaux (méthodes 0 = stocké, 8 = deflate)
+async function readZip(file) {
+  const tailLen = Math.min(file.size, 70000);
+  const tail = new DataView(await file.slice(file.size - tailLen).arrayBuffer());
+  let eocd = -1;
+  for (let i = tail.byteLength - 22; i >= 0; i--)
+    if (tail.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('ZIP invalide');
+  const n = tail.getUint16(eocd + 10, true);
+  const cdSize = tail.getUint32(eocd + 12, true);
+  const cdOff  = tail.getUint32(eocd + 16, true);
+  const cd = new DataView(await file.slice(cdOff, cdOff + cdSize).arrayBuffer());
+  const u8 = new Uint8Array(cd.buffer);
+  const dec = new TextDecoder();
+  const out = [];
+  let p = 0;
+  for (let k = 0; k < n; k++) {
+    if (cd.getUint32(p, true) !== 0x02014b50) break;
+    const method = cd.getUint16(p + 10, true);
+    const csize  = cd.getUint32(p + 20, true);
+    const nl = cd.getUint16(p + 28, true), el = cd.getUint16(p + 30, true), cl = cd.getUint16(p + 32, true);
+    const lho = cd.getUint32(p + 42, true);
+    const path = dec.decode(u8.subarray(p + 46, p + 46 + nl));
+    p += 46 + nl + el + cl;
+    if (path.endsWith('/')) continue;
+    out.push({ path, blob: async () => {
+      const lh = new DataView(await file.slice(lho, lho + 30).arrayBuffer());
+      const start = lho + 30 + lh.getUint16(26, true) + lh.getUint16(28, true);
+      const data = file.slice(start, start + csize);
+      const ext = (path.match(/\.(\w+)$/) || [])[1]?.toLowerCase();
+      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : ext === 'gif' ? 'image/gif' : ext === 'avif' ? 'image/avif' : 'image/jpeg';
+      if (method === 0) return data.slice(0, data.size, mime);
+      if (method !== 8) throw new Error('Compression non supportée');
+      const ds = data.stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      return new Blob([await new Response(ds).arrayBuffer()], { type: mime });
+    }});
+  }
+  return out;
+}
+
+// ═══════════════════════════════════════════
+//  OPEN MANGA
+// ═══════════════════════════════════════════
+async function openManga(id) {
+  const m = await dbGet(id);
+  if (!m) return;
+
+  showLoading('Chargement des pages…');
+  let files = [];
+
+  if (m.handle) {
+    // Mode FileSystemDirectoryHandle (Chrome / Edge)
+    let perm = await m.handle.queryPermission({ mode: 'read' });
+    if (perm !== 'granted') perm = await m.handle.requestPermission({ mode: 'read' });
+    if (perm !== 'granted') { hideLoading(); showToast('Accès refusé — autorise l\'accès au dossier'); return; }
+    await scanDir(m.handle, files, '');
+    files.sort(nsort);
+    if (!files.length) { hideLoading(); showToast('Aucune image dans ce dossier'); return; }
+  } else if ((files = (await dbPages(id)) || []).length) {
+    // pages chargées uniquement pour ce manga
+  } else {
+    hideLoading(); showToast('Impossible d\'ouvrir ce manga'); return;
+  }
+
+  // Libérer les urls précédentes
+  freeChapters();
+
+  // Grouper par chapitre (dossier parent)
+  const map = new Map();
+  for (const f of files) {
+    const ch = f.chapter;
+    if (!map.has(ch)) map.set(ch, []);
+    map.get(ch).push({ url: URL.createObjectURL(f.file), name: f.file.name });
+  }
+  chapters = [...map.entries()].map(([name, imgs]) => ({ name, imgs }));
+
+  curId  = id;
+  chIdx  = Math.min(m.chIdx  || 0, chapters.length - 1);
+  pgIdx  = Math.min(m.pgIdx  || 0, chapters[chIdx].imgs.length - 1);
+
+  hudTitle.textContent = m.name;
+  buildChapSel();
+  buildTbs();
+  hideLoading();
+
+  vlib.classList.add('hidden');
+  vrd.classList.remove('hidden');
+  resetZoom(false);
+  showPage(false);
+}
+
+// ═══════════════════════════════════════════
+//  READER
+// ═══════════════════════════════════════════
+function showPage(anim = true) {
+  const ch  = chapters[chIdx];
+  const img = ch.imgs[pgIdx];
+  hideNudge();
+
+  if (anim) {
+    rdImg.classList.add('fade');
+    setTimeout(() => { rdImg.src = img.url; rdImg.classList.remove('fade'); }, 100);
+  } else {
+    rdImg.src = img.url;
+  }
+
+  // Page globale
+  let gIdx = pgIdx, total = 0;
+  for (let i = 0; i < chapters.length; i++) {
+    if (i < chIdx) gIdx += chapters[i].imgs.length;
+    total += chapters[i].imgs.length;
+  }
+
+  hudPage.textContent = `${pgIdx+1} / ${ch.imgs.length}`;
+  hudChap.value = chIdx;
+  rdProg.style.width = total > 1 ? ((gIdx/(total-1))*100)+'%' : '100%';
+
+  // Thumbs
+  document.querySelectorAll('.tb').forEach((t,i) => t.classList.toggle('on', i===pgIdx));
+  document.querySelector('.tb.on')?.scrollIntoView({ inline:'center', behavior:'smooth', block:'nearest' });
+
+  flashHud();
+  saveProgress(gIdx+1, total);
+
+  // Nudge fin de chapitre
+  const lastPg   = pgIdx === ch.imgs.length - 1;
+  const hasNext  = chIdx < chapters.length - 1;
+  if (lastPg && hasNext) {
+    clearTimeout(nudgeT);
+    nudgeT = setTimeout(() => {
+      nudgeLbl.textContent = chapters[chIdx+1].name;
+      nudgeEl.classList.add('show');
+    }, 800);
+  }
+}
+
+async function saveProgress(readImgs, totalImgs) {
+  if (!curId) return;
+  try {
+    const m = await dbGet(curId);
+    if (!m) return;
+    m.chIdx = chIdx; m.pgIdx = pgIdx;
+    m.lastChap = chapters[chIdx]?.name || null;
+    m.readImgs = readImgs;
+    m.totalImgs = totalImgs;
+    m.lastAt = Date.now();
+    await dbPut(m);
+  } catch {}
+}
+
+function goNext() {
+  const ch = chapters[chIdx];
+  if (pgIdx < ch.imgs.length - 1) { pgIdx++; showPage(); }
+  else if (chIdx < chapters.length - 1) { chIdx++; pgIdx = 0; buildTbs(); showPage(); }
+}
+function goPrev() {
+  if (pgIdx > 0) { pgIdx--; showPage(); }
+  else if (chIdx > 0) { chIdx--; pgIdx = chapters[chIdx].imgs.length - 1; buildTbs(); showPage(); }
+}
+
+nudgeBtn.addEventListener('click', () => {
+  hideNudge();
+  chIdx++; pgIdx = 0;
+  buildTbs(); showPage();
+});
+function hideNudge() {
+  nudgeEl.classList.remove('show');
+  clearTimeout(nudgeT);
+}
+
+function buildChapSel() {
+  hudChap.innerHTML = '';
+  chapters.forEach((c,i) => {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = c.name;
+    hudChap.appendChild(o);
+  });
+  hudChap.value = chIdx;
+}
+hudChap.addEventListener('change', () => {
+  chIdx = +hudChap.value; pgIdx = 0;
+  buildTbs(); showPage();
+});
+
+function buildTbs() {
+  rdTbs.innerHTML = '';
+  chapters[chIdx].imgs.forEach(({ url, name }, i) => {
+    const t = document.createElement('img');
+    t.src = url; t.className = 'tb'; t.loading = 'lazy'; t.title = name;
+    t.addEventListener('click', () => { pgIdx = i; showPage(); });
+    rdTbs.appendChild(t);
+  });
+}
+
+// HUD fade
+function flashHud() {
+  rdHud.classList.remove('out');
+  clearTimeout(hudT);
+  hudT = setTimeout(() => { if (!tbsOpen) rdHud.classList.add('out'); }, 2600);
+}
+document.addEventListener('mousemove', () => { if (!vrd.classList.contains('hidden')) flashHud(); });
+
+// Thumbs toggle
+function toggleTbs() {
+  tbsOpen = !tbsOpen;
+  rdTbs.classList.toggle('open', tbsOpen);
+  btnTbs.classList.toggle('on', tbsOpen);
+  tbsOpen ? (clearTimeout(hudT), rdHud.classList.remove('out')) : flashHud();
+}
+
+// Home
+$('btn-home').addEventListener('click', closeReader);
+function closeReader() {
+  freeChapters();
+  resetZoom(false);
+  tbsOpen = false;
+  rdTbs.classList.remove('open');
+  btnTbs.classList.remove('on');
+  rdTbs.innerHTML = '';
+  rdImg.src = '';
+  rdProg.style.width = '0%';
+  rdHud.classList.remove('out');
+  curId = null;
+  hideNudge();
+  vrd.classList.add('hidden');
+  vlib.classList.remove('hidden');
+  renderLibrary();
+}
+function freeChapters() {
+  chapters.forEach(c => c.imgs.forEach(i => URL.revokeObjectURL(i.url)));
+  chapters = [];
+}
+
+// Click / tap zones — only trigger on a genuine quick tap, not on a drag/pinch/scroll gesture
+function bindTapZone(el, action) {
+  let startX = 0, startY = 0, startT = 0, touchHandled = false, ignore = false;
+
+  el.addEventListener('touchstart', e => {
+    if (e.touches.length > 1) { ignore = true; return; } // pinch gesture: ignore
+    ignore = false;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    startT = Date.now();
+  }, { passive: true });
+
+  el.addEventListener('touchend', e => {
+    if (ignore) return;
+    const t = e.changedTouches[0];
+    const dx = Math.abs(t.clientX - startX);
+    const dy = Math.abs(t.clientY - startY);
+    const dt = Date.now() - startT;
+    // Only counts as a tap if it's quick and barely moved (real drag/zoom/scroll won't qualify)
+    if (dx < 10 && dy < 10 && dt < 300) {
+      touchHandled = true;
+      action();
+      setTimeout(() => { touchHandled = false; }, 400);
+    }
+  });
+
+  el.addEventListener('click', () => {
+    if (touchHandled) return; // avoid double-trigger from the synthetic click after touchend
+    action();
+  });
+}
+bindTapZone($('rz-prev'), goPrev);
+bindTapZone($('rz-next'), goNext);
+
+// ═══════════════════════════════════════════
+//  ZOOM / PAN (custom, remplace le zoom natif du navigateur)
+// ═══════════════════════════════════════════
+let zScale = 1, zPanX = 0, zPanY = 0;
+let pinchStartDist = 0, pinchStartScale = 1;
+let panActive = false, panLastX = 0, panLastY = 0;
+const Z_MIN = 1, Z_MAX = 4;
+
+function applyZoom(smooth) {
+  rdImg.style.transition = smooth ? 'transform 0.2s ease, opacity 0.1s' : 'opacity 0.1s';
+  rdImg.style.transform = `translate(${zPanX}px, ${zPanY}px) scale(${zScale})`;
+}
+function resetZoom(smooth) {
+  zScale = 1; zPanX = 0; zPanY = 0;
+  panActive = false;
+  applyZoom(smooth);
+}
+function clampPan() {
+  const maxX = (window.innerWidth  * (zScale - 1)) / 2;
+  const maxY = (window.innerHeight * (zScale - 1)) / 2;
+  zPanX = Math.min(maxX, Math.max(-maxX, zPanX));
+  zPanY = Math.min(maxY, Math.max(-maxY, zPanY));
+}
+function touchDist(t1, t2) {
+  return Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+}
+
+vrd.addEventListener('touchstart', e => {
+  if (e.touches.length === 2) {
+    pinchStartDist = touchDist(e.touches[0], e.touches[1]);
+    pinchStartScale = zScale;
+    panActive = false;
+  } else if (e.touches.length === 1 && zScale > 1) {
+    panActive = true;
+    panLastX = e.touches[0].clientX;
+    panLastY = e.touches[0].clientY;
+  }
+}, { passive: true });
+
+vrd.addEventListener('touchmove', e => {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    const d = touchDist(e.touches[0], e.touches[1]);
+    zScale = Math.min(Z_MAX, Math.max(Z_MIN, pinchStartScale * (d / pinchStartDist)));
+    clampPan();
+    applyZoom(false);
+    panActive = false;
+  } else if (e.touches.length === 1 && zScale > 1) {
+    const t = e.touches[0];
+    if (!panActive) { panActive = true; panLastX = t.clientX; panLastY = t.clientY; }
+    e.preventDefault();
+    zPanX += t.clientX - panLastX;
+    zPanY += t.clientY - panLastY;
+    panLastX = t.clientX; panLastY = t.clientY;
+    clampPan();
+    applyZoom(false);
+  }
+}, { passive: false });
+
+vrd.addEventListener('touchend', e => {
+  if (e.touches.length === 0) {
+    panActive = false;
+    if (zScale <= 1.02) resetZoom(true);
+  } else if (e.touches.length === 1) {
+    // on passe de 2 doigts à 1 : on réinitialise juste le point de départ, pas de saut
+    panActive = true;
+    panLastX = e.touches[0].clientX;
+    panLastY = e.touches[0].clientY;
+  }
+});
+
+// Desktop : ctrl+molette = pinch trackpad (zoom). Scroll 2 doigts sans ctrl = pan quand zoomé.
+// Molette seule (sans zoom actif) ne fait toujours rien : pas de changement de page.
+vrd.addEventListener('wheel', e => {
+  if (e.ctrlKey) {
+    e.preventDefault();
+    zScale = Math.min(Z_MAX, Math.max(Z_MIN, zScale - e.deltaY * 0.01));
+    clampPan();
+    applyZoom(false);
+    if (zScale <= 1.02) resetZoom(true);
+    return;
+  }
+  if (zScale > 1) {
+    e.preventDefault();
+    zPanX -= e.deltaX;
+    zPanY -= e.deltaY;
+    clampPan();
+    applyZoom(false);
+  }
+}, { passive: false });
+
+// Double-clic / double-tap pour reset rapide
+rdImg.addEventListener('dblclick', () => resetZoom(true));
+
+// ═══════════════════════════════════════════
+//  NAVIGATION TACTILE : boutons ‹ › + swipe gauche/droite
+// ═══════════════════════════════════════════
+$('btn-prev').addEventListener('click', goPrev);
+$('btn-next').addEventListener('click', goNext);
+
+let swX = 0, swY = 0, swT = 0, swOK = false;
+vrd.addEventListener('touchstart', e => {
+  swOK = e.touches.length === 1 && zScale <= 1.02 && !e.target.closest('#rd-hud, #rd-tbs, #chap-next-nudge');
+  if (swOK) { swX = e.touches[0].clientX; swY = e.touches[0].clientY; swT = Date.now(); }
+}, { passive: true });
+vrd.addEventListener('touchmove', e => { if (e.touches.length > 1) swOK = false; }, { passive: true });
+vrd.addEventListener('touchend', e => {
+  if (!swOK || e.touches.length) return;
+  swOK = false;
+  const t = e.changedTouches[0];
+  const dx = t.clientX - swX, dy = t.clientY - swY;
+  if (Date.now() - swT < 700 && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+    dx < 0 ? goNext() : goPrev();   // glisser vers la gauche = page suivante, vers la droite = page précédente
+  }
+});
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (!vrd.classList.contains('hidden')) {
+    if (['ArrowRight','ArrowDown',' '].includes(e.key)) { e.preventDefault(); goNext(); }
+    else if (['ArrowLeft','ArrowUp'].includes(e.key))   { e.preventDefault(); goPrev(); }
+    else if (e.key === 't' || e.key === 'T') toggleTbs();
+    else if (e.key === 'Escape') closeReader();
+  }
+});
+// Wheel navigation désactivée : le scroll/zoom au trackpad ne doit plus jamais changer de page.
+// Seuls les clics sur les zones gauche/droite et les flèches clavier changent de page.
+
+// ═══════════════════════════════════════════
+//  FILE SYSTEM
+// ═══════════════════════════════════════════
+async function scanDir(handle, out, parentPath) {
+  for await (const entry of handle.values()) {
+    if (entry.kind === 'file') {
+      if (isImg(entry.name)) {
+        const file = await entry.getFile();
+        out.push({
+          file,
+          path: parentPath ? `${parentPath}/${entry.name}` : entry.name,
+          chapter: parentPath || '—'
+        });
+      }
+    } else if (entry.kind === 'directory') {
+      const sub = parentPath ? `${parentPath}/${entry.name}` : entry.name;
+      await scanDir(entry, out, sub);
+    }
+  }
+}
+function isImg(n)  { return /\.(jpe?g|png|gif|webp|bmp|avif)$/i.test(n); }
+function nsort(a,b){ return a.path.localeCompare(b.path, undefined, { numeric:true, sensitivity:'base' }); }
+
+// ═══════════════════════════════════════════
+//  UI HELPERS
+// ═══════════════════════════════════════════
+let toastT;
+function showToast(msg, dur=2600) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => toast.classList.remove('show'), dur);
+}
+function showLoading(t='Chargement…') { loadTxt.textContent=t; loadingEl.classList.add('show'); }
+function hideLoading()                { loadingEl.classList.remove('show'); }
+
+function openModal(title, sub, cb) {
+  modalT.textContent = title;
+  modalS.textContent = sub;
+  modalCb = cb;
+  modalWrap.classList.add('show');
+}
+function closeModal() { modalWrap.classList.remove('show'); modalCb = null; }
+modalOk.addEventListener('click', async () => { const cb = modalCb; closeModal(); if (cb) await cb(); });
+modalWrap.addEventListener('click', e => { if (e.target===modalWrap) closeModal(); });
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+init();
+</script>
+</body>
+</html>
