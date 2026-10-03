@@ -597,7 +597,7 @@ html, body {
         <line x1="7.5" y1="10" x2="14" y2="10" stroke="#2C2C2C" stroke-width="1"/>
         <line x1="7.5" y1="14" x2="12" y2="14" stroke="#2C2C2C" stroke-width="1"/>
       </svg>
-      <span class="brand-text">MAN<em>G</em>A</span>
+      <span class="brand-text">MAN<em>G</em>A</span><span style="font-size:9px;opacity:.45;margin-left:6px;">v8</span>
       <span class="lib-count" id="lib-count"></span>
     </div>
     <div style="display:flex; gap:8px;">
@@ -1170,10 +1170,10 @@ $('btn-add-zip').addEventListener('click', () => {
         const roots = [...new Set(items0.map(x => x.p.split('/')[0]))];
         const allInFolders = items0.every(x => x.p.includes('/'));
 
-        // Découpe le zip en "mangas" : [{ name, items:[{e, p}] }]
+        // Découpe le zip en "mangas" : un dossier = un manga (sauf si les dossiers ressemblent à des chapitres)
+        const chapterLike = n => /^(chap(ter|itre)?|ch|vol(ume)?|tome|ep(isode)?)[\s._-]*\d+/i.test(n.trim()) || /^\d+(\.\d+)?$/.test(n.trim());
         let groups;
-        if (allInFolders && roots.length > 1 &&
-            confirm(`Ce zip contient ${roots.length} dossiers.\n\nOK = un manga par dossier\nAnnuler = un seul manga avec ${roots.length} chapitres`)) {
+        if (allInFolders && roots.length > 1 && !roots.every(chapterLike)) {
           groups = roots.map(r => ({ name: r, items: items0.filter(x => x.p.split('/')[0] === r)
                                                            .map(x => ({ e: x.e, p: x.p.split('/').slice(1).join('/') })) }));
         } else {
